@@ -2,6 +2,50 @@ import { useState, useRef, useEffect } from "react";
 import "./App.css";
 import GIF from "gif.js";
 
+// 翻译字典
+const translations = {
+    zh: {
+        title: "图像分割 GIF 生成器",
+        chooseImage: "选择图片",
+        byRowsCols: "按行列数切分",
+        bySize: "按精灵尺寸切分",
+        cols: "列数:",
+        rows: "行数:",
+        frameWidth: "帧宽度:",
+        frameHeight: "帧高度:",
+        frameDelay: "帧延迟 (ms):",
+        frameSizeInfo: "每帧尺寸:",
+        generateFramesInfo: "可生成:",
+        frames: "帧",
+        sortFrames: "排序帧顺序",
+        generating: "生成中...",
+        generatePreview: "生成GIF预览",
+        gifPreview: "GIF 预览",
+        saveGif: "保存 GIF",
+        px: "px"
+    },
+    en: {
+        title: "Sprite Sheet GIF Generator",
+        chooseImage: "Choose Image",
+        byRowsCols: "Split by Rows & Columns",
+        bySize: "Split by Sprite Size",
+        cols: "Columns:",
+        rows: "Rows:",
+        frameWidth: "Frame Width:",
+        frameHeight: "Frame Height:",
+        frameDelay: "Frame Delay (ms):",
+        frameSizeInfo: "Frame Size:",
+        generateFramesInfo: "Can generate:",
+        frames: "frames",
+        sortFrames: "Sort Frame Order",
+        generating: "Generating...",
+        generatePreview: "Generate GIF Preview",
+        gifPreview: "GIF Preview",
+        saveGif: "Save GIF",
+        px: "px"
+    }
+};
+
 function App() {
     const [, setImageFile] = useState(null);
     const [originalImage, setOriginalImage] = useState(null);
@@ -15,7 +59,16 @@ function App() {
     const [gifPreview, setGifPreview] = useState(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [delay, setDelay] = useState(200); // 每帧延迟时间（毫秒）
+    const [language, setLanguage] = useState("en"); // 默认语言为中文
     const canvasRef = useRef(null);
+
+    // 获取当前语言的翻译
+    const t = translations[language];
+
+    // 切换语言
+    const toggleLanguage = () => {
+        setLanguage(prev => prev === "zh" ? "en" : "zh");
+    };
 
     // 当用户上传图片时
     const handleImageUpload = e => {
@@ -225,7 +278,13 @@ function App() {
 
     return (
         <div className='app-container'>
-            <h1>图像分割 GIF 生成器</h1>
+            <div className="language-switch">
+                <button className={`lang-button ${language === 'zh' ? 'active' : ''}`} onClick={toggleLanguage}>
+                    中文 / English
+                </button>
+            </div>
+            
+            <h1>{t.title}</h1>
 
             <div className='upload-section'>
                 <input
@@ -241,7 +300,7 @@ function App() {
                         <polyline points="17 8 12 3 7 8"></polyline>
                         <line x1="12" y1="3" x2="12" y2="15"></line>
                     </svg>
-                    选择图片
+                    {t.chooseImage}
                 </label>
             </div>
 
@@ -253,21 +312,21 @@ function App() {
                             onClick={toggleSizeMode}
                             disabled={!customSize}
                         >
-                            按行列数切分
+                            {t.byRowsCols}
                         </button>
                         <button 
                             className={`mode-button ${customSize ? 'active' : ''}`}
                             onClick={toggleSizeMode}
                             disabled={customSize}
                         >
-                            按精灵尺寸切分
+                            {t.bySize}
                         </button>
                     </div>
                     
                     {!customSize ? (
                         <div className='grid-controls'>
                             <div>
-                                <label>列数:</label>
+                                <label>{t.cols}</label>
                                 <input
                                     type='number'
                                     min='1'
@@ -276,7 +335,7 @@ function App() {
                                 />
                             </div>
                             <div>
-                                <label>行数:</label>
+                                <label>{t.rows}</label>
                                 <input
                                     type='number'
                                     min='1'
@@ -285,40 +344,40 @@ function App() {
                                 />
                             </div>
                             <div className="info-box">
-                                <span>每帧尺寸: {Math.floor(originalImage.width / cols)} × {Math.floor(originalImage.height / rows)} px</span>
+                                <span>{t.frameSizeInfo} {Math.floor(originalImage.width / cols)} × {Math.floor(originalImage.height / rows)} {t.px}</span>
                             </div>
                         </div>
                     ) : (
                         <div className='grid-controls'>
                             <div>
-                                <label>帧宽度:</label>
+                                <label>{t.frameWidth}</label>
                                 <input
                                     type='number'
                                     min='1'
                                     value={spriteWidth}
                                     onChange={e => handleSpriteSize(e, "width")}
                                 />
-                                <span>px</span>
+                                <span>{t.px}</span>
                             </div>
                             <div>
-                                <label>帧高度:</label>
+                                <label>{t.frameHeight}</label>
                                 <input
                                     type='number'
                                     min='1'
                                     value={spriteHeight}
                                     onChange={e => handleSpriteSize(e, "height")}
                                 />
-                                <span>px</span>
+                                <span>{t.px}</span>
                             </div>
                             <div className="info-box">
-                                <span>可生成: {Math.floor(originalImage.width / spriteWidth)} × {Math.floor(originalImage.height / spriteHeight)} 帧</span>
+                                <span>{t.generateFramesInfo} {Math.floor(originalImage.width / spriteWidth)} × {Math.floor(originalImage.height / spriteHeight)} {t.frames}</span>
                             </div>
                         </div>
                     )}
                     
                     <div className='grid-controls delay-control'>
                         <div>
-                            <label>帧延迟 (ms):</label>
+                            <label>{t.frameDelay}</label>
                             <input
                                 type='number'
                                 min='10'
@@ -344,7 +403,7 @@ function App() {
                                 <line x1="10" y1="3" x2="8" y2="21"></line>
                                 <line x1="16" y1="3" x2="14" y2="21"></line>
                             </svg>
-                            排序帧顺序
+                            {t.sortFrames}
                         </h3>
                         <div className='frames-list'>
                             {frameOrder.map((id, index) => {
@@ -389,7 +448,7 @@ function App() {
                                         <circle cx="12" cy="12" r="10"></circle>
                                         <path d="M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0z"></path>
                                     </svg>
-                                    生成中...
+                                    {t.generating}
                                 </>
                             ) : (
                                 <>
@@ -397,7 +456,7 @@ function App() {
                                         <path d="M12 3v12l8-8-8-8z"></path>
                                         <path d="M3 8h6v13H3z"></path>
                                     </svg>
-                                    生成GIF预览
+                                    {t.generatePreview}
                                 </>
                             )}
                         </button>
@@ -408,7 +467,7 @@ function App() {
                                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px', verticalAlign: 'middle'}}>
                                         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
                                     </svg>
-                                    GIF 预览
+                                    {t.gifPreview}
                                 </h3>
                                 <img src={gifPreview} alt='GIF Preview' />
                                 <button onClick={saveGif} className='save-button'>
@@ -417,7 +476,7 @@ function App() {
                                         <polyline points="7 10 12 15 17 10"></polyline>
                                         <line x1="12" y1="15" x2="12" y2="3"></line>
                                     </svg>
-                                    保存 GIF
+                                    {t.saveGif}
                                 </button>
                             </div>
                         )}
