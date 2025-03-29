@@ -1813,7 +1813,10 @@ function App() {
                                         className={`frame-item ${
                                             selectedFrameId === id ? "selected" : ""
                                         }`}
-                                        onClick={() => setSelectedFrameId(id)}
+                                        onClick={() => {
+                                            setSelectedFrameId(id);
+                                            setGifPreview(null); // 清除GIF预览
+                                        }}
                                     >
                                         <img
                                             src={sprite.image}
@@ -2083,7 +2086,7 @@ function App() {
                             )}
                         </button>
 
-                        {gifPreview && (
+                        {gifPreview ? (
                             <div className='gif-preview'>
                                 <h3>
                                     <svg
@@ -2143,6 +2146,39 @@ function App() {
                                         {t.saveApng}
                                     </button>
                                 </div>
+                            </div>
+                        ) : selectedFrameId !== null && (
+                            <div className='selected-frame-preview'>
+                                <h3>
+                                    <svg
+                                        xmlns='http://www.w3.org/2000/svg'
+                                        width='20'
+                                        height='20'
+                                        viewBox='0 0 24 24'
+                                        fill='none'
+                                        stroke='currentColor'
+                                        strokeWidth='2'
+                                        strokeLinecap='round'
+                                        strokeLinejoin='round'
+                                        style={{ marginRight: "8px", verticalAlign: "middle" }}
+                                    >
+                                        <rect x='3' y='3' width='18' height='18' rx='2' ry='2'></rect>
+                                    </svg>
+                                    所选帧预览
+                                </h3>
+                                {(() => {
+                                    const sprite = sprites.find(s => s.id === selectedFrameId);
+                                    if (!sprite) return null;
+                                    return (
+                                        <div className='selected-frame-image-container'>
+                                            <img 
+                                                src={sprite.image} 
+                                                alt={`帧 ${frameOrder.indexOf(selectedFrameId) + 1}`}
+                                                style={{ border: '1px solid #00ff00' }}
+                                            />
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         )}
                     </div>
