@@ -522,6 +522,14 @@ h3 {
   transition: var(--transition);
 }
 
+/* 保存按钮组样式 */
+.save-buttons {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  width: 100%;
+}
+
 .save-button {
   padding: 12px 24px;
   background-color: var(--accent-color);
@@ -532,11 +540,21 @@ h3 {
   font-weight: 600;
   transition: var(--transition);
   box-shadow: var(--shadow-sm);
-  min-width: 180px;
+  min-width: 160px;
   font-size: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.save-apng {
+  background-color: var(--primary-color);
+}
+
+.save-apng:hover {
+  background-color: var(--primary-dark);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .save-button:hover {
@@ -589,4 +607,38 @@ h3 {
     display: flex;
     justify-content: center;
   }
+}
+
+/* GitHub页脚样式 */
+.github-footer {
+  margin-top: 2rem;
+  padding: 1rem 0;
+  display: flex;
+  justify-content: center;
+  border-top: 1px solid var(--border-color);
+}
+
+.github-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: var(--text-color);
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.github-link:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  transform: translateY(-2px);
+}
+
+.github-link svg {
+  transition: transform 0.3s ease;
+}
+
+.github-link:hover svg {
+  transform: rotate(5deg);
 }

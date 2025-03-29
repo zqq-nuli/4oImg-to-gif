@@ -1,0 +1,6 @@
+# Allow all crawlers
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://github.com/zqq-nuli/4oImg-to-gif/sitemap.xml 

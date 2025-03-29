@@ -22,6 +22,7 @@ const translations = {
         generatePreview: "生成GIF预览",
         gifPreview: "GIF 预览",
         saveGif: "保存 GIF",
+        saveApng: "保存 APNG",
         px: "px"
     },
     en: {
@@ -42,6 +43,7 @@ const translations = {
         generatePreview: "Generate GIF Preview",
         gifPreview: "GIF Preview",
         saveGif: "Save GIF",
+        saveApng: "Save APNG",
         px: "px"
     }
 };
@@ -59,7 +61,7 @@ function App() {
     const [gifPreview, setGifPreview] = useState(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [delay, setDelay] = useState(200); // 每帧延迟时间（毫秒）
-    const [language, setLanguage] = useState("en"); // 默认语言为中文
+    const [language, setLanguage] = useState("zh"); // 默认语言为中文
     const canvasRef = useRef(null);
 
     // 获取当前语言的翻译
@@ -260,6 +262,101 @@ function App() {
         link.click();
     };
 
+    // 保存APNG
+    const saveApng = () => {
+        if (!gifPreview) return;
+        
+        if (sprites.length === 0 || frameOrder.length === 0) return;
+
+        // 使用Canvas创建APNG
+        const finalWidth = customSize ? spriteWidth : Math.floor(originalImage.width / cols);
+        const finalHeight = customSize ? spriteHeight : Math.floor(originalImage.height / rows);
+        
+        // 创建离屏画布
+        const canvas = document.createElement('canvas');
+        canvas.width = finalWidth;
+        canvas.height = finalHeight;
+        const ctx = canvas.getContext('2d');
+        
+        // 创建所有帧图像的列表，用于合成
+        const frames = [];
+        const delays = [];
+        
+        // 加载所有精灵图像
+        const loadPromises = frameOrder.map(id => {
+            return new Promise((resolve) => {
+                const sprite = sprites.find(s => s.id === id);
+                if (!sprite) resolve(null);
+                
+                const img = new Image();
+                img.onload = () => {
+                    // 清除画布
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    
+                    // 绘制当前精灵到画布
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
+                    // 获取图像数据
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    
+                    // 将ImageData转为可传输对象
+                    const transferableImageData = {
+                        width: imageData.width,
+                        height: imageData.height,
+                        data: Array.from(imageData.data)
+                    };
+                    
+                    frames.push(transferableImageData);
+                    delays.push(delay);
+                    resolve();
+                };
+                img.src = sprite.image;
+            });
+        });
+        
+        // 等待所有图像加载完成
+        Promise.all(loadPromises).then(() => {
+            try {
+                // 创建一个Web Worker来生成APNG以避免阻塞主线程
+                const worker = new Worker('/apng-worker.js');
+                
+                worker.onmessage = function(e) {
+                    if (e.data.type === 'done') {
+                        const blob = new Blob([e.data.buffer], {type: 'image/png'});
+                        const url = URL.createObjectURL(blob);
+                        
+                        // 下载文件
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = 'animated.png';
+                        link.click();
+                        
+                        // 清理
+                        URL.revokeObjectURL(url);
+                        worker.terminate();
+                    } else if (e.data.type === 'error') {
+                        console.error('APNG生成错误:', e.data.error);
+                        alert('生成APNG失败：' + e.data.error);
+                    }
+                };
+                
+                // 发送数据到Worker
+                worker.postMessage({
+                    frames: frames,
+                    delays: delays,
+                });
+            } catch (error) {
+                console.error('APNG创建失败:', error);
+                
+                // 回退方案：直接使用GIF作为PNG保存（与之前相同）
+                const link = document.createElement('a');
+                link.href = gifPreview;
+                link.download = 'animated.png';
+                link.click();
+            }
+        });
+    };
+
     // 调整帧顺序
     const moveFrame = (id, direction) => {
         const newOrder = [...frameOrder];
@@ -412,7 +509,7 @@ function App() {
 
                                 return (
                                     <div key={id} className='frame-item'>
-                                        <img src={sprite.image} alt={`Frame ${index}`} />
+                                        <img src={sprite.image} alt={`动画帧 ${index + 1} - 坐标 (${sprite.x}, ${sprite.y})`} />
                                         <div className='frame-controls'>
                                             <button
                                                 onClick={() => moveFrame(id, "up")}
@@ -469,20 +566,40 @@ function App() {
                                     </svg>
                                     {t.gifPreview}
                                 </h3>
-                                <img src={gifPreview} alt='GIF Preview' />
-                                <button onClick={saveGif} className='save-button'>
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px'}}>
-                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                        <polyline points="7 10 12 15 17 10"></polyline>
-                                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                                    </svg>
-                                    {t.saveGif}
-                                </button>
+                                <img src={gifPreview} alt='动画GIF预览效果' />
+                                <div className="save-buttons">
+                                    <button onClick={saveGif} className='save-button'>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px'}}>
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                            <polyline points="7 10 12 15 17 10"></polyline>
+                                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                                        </svg>
+                                        {t.saveGif}
+                                    </button>
+                                    <button onClick={saveApng} className='save-button save-apng'>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px'}}>
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                            <polyline points="7 10 12 15 17 10"></polyline>
+                                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                                        </svg>
+                                        {t.saveApng}
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </div>
                 </div>
             )}
+
+            {/* 添加GitHub链接 */}
+            <footer className="github-footer">
+                <a href="https://github.com/zqq-nuli/4oImg-to-gif" target="_blank" rel="noopener noreferrer" className="github-link">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+                    </svg>
+                    <span>GitHub</span>
+                </a>
+            </footer>
         </div>
     );
 }
