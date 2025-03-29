@@ -1,86 +1,40 @@
 <!doctype html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>图像分割 GIF 生成器 | Sprite Sheet GIF Generator</title>
-    
-    <!-- SEO Meta Tags -->
-    <meta name="description" content="免费在线精灵图分割工具，轻松将精灵表分割成帧，制作GIF和APNG动画。支持自定义行列数、帧率设置和排序功能。 | Free online sprite sheet splitter, create GIF and APNG animations easily. Supports custom rows & columns, frame rate settings and sorting." />
-    <meta name="keywords" content="精灵图,sprite sheet,GIF生成器,APNG生成器,图像分割,在线工具,动画制作,帧动画,GIF generator,APNG generator,image splitter,online tool,animation maker,frame animation" />
-    <meta name="author" content="zqq-nuli" />
 
-    <!-- 语言替代版本元标签 -->
-    <link rel="alternate" hreflang="zh" href="?lang=zh" />
-    <link rel="alternate" hreflang="en" href="?lang=en" />
-    <link rel="alternate" hreflang="x-default" href="?lang=zh" />
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="./vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>图像分割 GIF 生成器 | Sprite Sheet GIF Generator</title>
 
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://github.com/zqq-nuli/4oImg-to-gif" />
-    <meta property="og:title" content="图像分割 GIF 生成器 | Sprite Sheet GIF Generator" />
-    <meta property="og:description" content="免费在线精灵图分割工具，轻松创建GIF和APNG动画。 | Free online sprite sheet splitter, create GIF and APNG animations easily." />
-    <meta property="og:image" content="/og-image.png" />
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="免费在线精灵图分割工具，轻松将精灵表分割成帧，制作GIF和APNG动画。支持自定义行列数、帧率设置和排序功能。" />
+  <meta name="keywords" content="精灵图,sprite sheet,GIF生成器,APNG生成器,图像分割,在线工具,动画制作,帧动画" />
+  <meta name="author" content="zqq-nuli" />
 
-    <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image" />
-    <meta property="twitter:url" content="https://github.com/zqq-nuli/4oImg-to-gif" />
-    <meta property="twitter:title" content="图像分割 GIF 生成器 | Sprite Sheet GIF Generator" />
-    <meta property="twitter:description" content="免费在线精灵图分割工具，轻松创建GIF和APNG动画。 | Free online sprite sheet splitter, create GIF and APNG animations easily." />
-    <meta property="twitter:image" content="/og-image.png" />
-    
-    <!-- 规范链接 -->
-    <link rel="canonical" href="https://github.com/zqq-nuli/4oImg-to-gif" />
-    
-    <!-- 结构化数据 - 中文 -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "图像分割 GIF 生成器",
-      "description": "免费在线精灵图分割工具，轻松将精灵表(sprite sheet)分割成帧，制作GIF和APNG动画。",
-      "applicationCategory": "DesignApplication",
-      "operatingSystem": "Web",
-      "inLanguage": "zh-CN",
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "CNY"
-      },
-      "author": {
-        "@type": "Person",
-        "name": "zqq-nuli",
-        "url": "https://github.com/zqq-nuli"
-      }
-    }
-    </script>
-    
-    <!-- 结构化数据 - 英文 -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "Sprite Sheet GIF Generator",
-      "description": "Free online sprite sheet splitter, easily split sprite sheets into frames and create GIF and APNG animations.",
-      "applicationCategory": "DesignApplication",
-      "operatingSystem": "Web",
-      "inLanguage": "en",
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "USD"
-      },
-      "author": {
-        "@type": "Person",
-        "name": "zqq-nuli",
-        "url": "https://github.com/zqq-nuli"
-      }
-    }
-    </script>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+  <!-- 语言替代版本元标签 - 使用相对路径 -->
+  <link rel="alternate" hreflang="zh" href="./zh.html" />
+  <link rel="alternate" hreflang="en" href="./en.html" />
+  <link rel="alternate" hreflang="x-default" href="./index.html" />
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://zqq-nuli.github.io/4oImg-to-gif/" />
+  <meta property="og:title" content="图像分割 GIF 生成器" />
+  <meta property="og:description" content="免费在线精灵图分割工具，轻松创建GIF和APNG动画。" />
+  <meta property="og:image" content="./vite.svg" />
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image" />
+  <meta property="twitter:url" content="https://zqq-nuli.github.io/4oImg-to-gif/" />
+  <meta property="twitter:title" content="图像分割 GIF 生成器" />
+  <meta property="twitter:description" content="免费在线精灵图分割工具，轻松创建GIF和APNG动画。" />
+  <meta property="twitter:image" content="./vite.svg" />
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+
 </html>
