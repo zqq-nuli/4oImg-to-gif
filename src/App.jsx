@@ -36,6 +36,21 @@ const translations = {
         applySelection: "应用选区",
         cancelSelection: "取消选区",
         issuesTip: "如果您觉得哪里做得不好，或者想要新功能，可以在GitHub上提交issues",
+        detectGridLines: "检测框线",
+        detectingGridLines: "正在检测框线...",
+        gridLinesDetected: "已检测到 {count} 个精灵图",
+        gridLinesThreshold: "检测阈值:",
+        applyDetection: "应用检测结果",
+        detectionModeGeneral: "通用检测模式",
+        detectionModeWhiteBorder: "白色边框检测",
+        detectionModeDescription: "检测模式:",
+        expectedRows: "预期行数:",
+        expectedCols: "预期列数:",
+        useExpectedGrid: "使用预期行列数",
+        excludeBorders: "排除边框",
+        borderSize: "边框大小(像素):",
+        trimEdges: "修剪边缘",
+        autoTrimEdges: "自动修剪边缘",
     },
     en: {
         title: "Sprite Sheet GIF Generator",
@@ -69,6 +84,21 @@ const translations = {
         applySelection: "Apply Selection",
         cancelSelection: "Cancel Selection",
         issuesTip: "If you find any issues or want new features, please submit issues on GitHub",
+        detectGridLines: "Detect Grid Lines",
+        detectingGridLines: "Detecting grid lines...",
+        gridLinesDetected: "{count} sprites detected",
+        gridLinesThreshold: "Detection threshold:",
+        applyDetection: "Apply Detection",
+        detectionModeGeneral: "General Detection Mode",
+        detectionModeWhiteBorder: "White Border Detection",
+        detectionModeDescription: "Detection Mode:",
+        expectedRows: "Expected Rows:",
+        expectedCols: "Expected Columns:",
+        useExpectedGrid: "Use Expected Grid",
+        excludeBorders: "Exclude Borders",
+        borderSize: "Border Size(px):",
+        trimEdges: "Trim Edges",
+        autoTrimEdges: "Auto Trim Edges",
     },
 };
 
@@ -87,12 +117,25 @@ function App() {
     const [delay, setDelay] = useState(200); // 每帧延迟时间（毫秒）
     const [language, setLanguage] = useState("zh"); // 默认语言为中文
     const [selectedFrameId, setSelectedFrameId] = useState(null); // 当前选中的帧ID
+    const [frameItemsPerRow, setFrameItemsPerRow] = useState(4); // 每行显示的帧数量
     const canvasRef = useRef(null);
     const selectionCanvasRef = useRef(null); // 用于框选的画布
     const [isSelecting, setIsSelecting] = useState(false); // 是否处于框选状态
     const [selectionStart, setSelectionStart] = useState({ x: 0, y: 0 }); // 选择的起始位置
     const [selectionEnd, setSelectionEnd] = useState({ x: 0, y: 0 }); // 选择的结束位置
     const [showSelectionTool, setShowSelectionTool] = useState(false); // 是否显示框选工具
+    const [isDetectingGridLines, setIsDetectingGridLines] = useState(false); // 是否正在检测框线
+    const [detectionCanvas, setDetectionCanvas] = useState(null); // 检测结果预览画布
+    const [detectedSprites, setDetectedSprites] = useState([]); // 检测到的精灵图
+    const [detectionThreshold, setDetectionThreshold] = useState(150); // 检测阈值，值越大线条越明显
+    const detectionCanvasRef = useRef(null); // 框线检测画布的引用
+    const [detectionMode, setDetectionMode] = useState('whiteBorder'); // 检测模式：'general'或'whiteBorder'
+    const [expectedRows, setExpectedRows] = useState(3); // 预期行数
+    const [expectedCols, setExpectedCols] = useState(4); // 预期列数
+    const [useExpectedGrid, setUseExpectedGrid] = useState(true); // 是否使用预期行列数
+    const [excludeBorders, setExcludeBorders] = useState(true); // 是否排除白色边框
+    const [borderSize, setBorderSize] = useState(3); // 边框大小（像素）
+    const [autoTrimEdges, setAutoTrimEdges] = useState(true); // 是否自动修剪边缘
 
     // 获取当前语言的翻译
     const t = translations[language];
@@ -127,6 +170,14 @@ function App() {
         if (!originalImage) return;
         splitImage();
     }, [originalImage, cols, rows, spriteWidth, spriteHeight, customSize]);
+
+    // 更新每行显示的帧数量
+    useEffect(() => {
+        // 使用当前设置的列数作为每行显示的帧数量，确保至少有2列
+        if (cols > 0) {
+            setFrameItemsPerRow(Math.max(2, Math.min(cols, 8)));
+        }
+    }, [cols]);
 
     // 分割图片
     const splitImage = () => {
@@ -839,6 +890,560 @@ function App() {
         }
     }, [showSelectionTool, selectionStart, selectionEnd, isSelecting]);
 
+    // 开始检测框线
+    const startGridLineDetection = () => {
+        if (!originalImage) return;
+        
+        setIsDetectingGridLines(true);
+        
+        // 创建canvas用于检测和显示
+        const canvas = document.createElement('canvas');
+        canvas.width = originalImage.width;
+        canvas.height = originalImage.height;
+        const ctx = canvas.getContext('2d');
+        
+        // 绘制原图
+        ctx.drawImage(originalImage, 0, 0);
+        
+        // 获取图像数据
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        
+        // 执行边缘检测
+        setTimeout(() => {
+            let horizontalLines = [];
+            let verticalLines = [];
+            
+            if (detectionMode === 'general') {
+                // 通用检测模式 - 使用之前的Sobel算子检测
+                const edgeData = detectEdges(imageData, detectionThreshold);
+                const result = findGridLines(edgeData, canvas.width, canvas.height);
+                horizontalLines = result.horizontalLines;
+                verticalLines = result.verticalLines;
+            } else {
+                // 白色边框检测模式 - 专门针对白色边框优化
+                const result = detectWhiteBorders(imageData, canvas.width, canvas.height);
+                horizontalLines = result.horizontalLines;
+                verticalLines = result.verticalLines;
+                
+                // 如果用户选择了使用预期行列数，则使用预先定义的网格
+                if (useExpectedGrid && expectedRows > 0 && expectedCols > 0) {
+                    // 使用预期行列数计算均匀的网格
+                    horizontalLines = [];
+                    verticalLines = [];
+                    
+                    // 生成行线（水平线）
+                    const rowHeight = canvas.height / expectedRows;
+                    for (let i = 0; i <= expectedRows; i++) {
+                        horizontalLines.push(Math.round(i * rowHeight));
+                    }
+                    
+                    // 生成列线（垂直线）
+                    const colWidth = canvas.width / expectedCols;
+                    for (let i = 0; i <= expectedCols; i++) {
+                        verticalLines.push(Math.round(i * colWidth));
+                    }
+                }
+            }
+            
+            console.log("检测到水平线:", horizontalLines.length);
+            console.log("检测到垂直线:", verticalLines.length);
+            
+            // 根据检测到的线条划分精灵区域
+            const sprites = divideIntoSprites(horizontalLines, verticalLines, canvas.width, canvas.height);
+            
+            // 更新状态
+            setDetectedSprites(sprites);
+            
+            // 创建预览
+            const previewCanvas = document.createElement('canvas');
+            previewCanvas.width = canvas.width;
+            previewCanvas.height = canvas.height;
+            const previewCtx = previewCanvas.getContext('2d');
+            
+            // 绘制原图
+            previewCtx.drawImage(originalImage, 0, 0);
+            
+            // 绘制检测到的网格线
+            previewCtx.strokeStyle = 'rgba(255, 0, 0, 0.8)';
+            previewCtx.lineWidth = 2;
+            
+            // 绘制水平线
+            horizontalLines.forEach(y => {
+                previewCtx.beginPath();
+                previewCtx.moveTo(0, y);
+                previewCtx.lineTo(canvas.width, y);
+                previewCtx.stroke();
+            });
+            
+            // 绘制垂直线
+            verticalLines.forEach(x => {
+                previewCtx.beginPath();
+                previewCtx.moveTo(x, 0);
+                previewCtx.lineTo(x, canvas.height);
+                previewCtx.stroke();
+            });
+            
+            // 绘制检测到的精灵区域
+            previewCtx.strokeStyle = 'rgba(0, 255, 0, 0.7)';
+            previewCtx.lineWidth = 2;
+            
+            // 首先绘制原始检测区域（淡绿色）
+            if (excludeBorders) {
+                const originalCells = [];
+                
+                // 生成原始单元格
+                for (let i = 0; i < horizontalLines.length - 1; i++) {
+                    for (let j = 0; j < verticalLines.length - 1; j++) {
+                        const x = verticalLines[j];
+                        const y = horizontalLines[i];
+                        const width = verticalLines[j + 1] - x;
+                        const height = horizontalLines[i + 1] - y;
+                        
+                        // 忽略太小的单元格
+                        if (width < 10 || height < 10) continue;
+                        
+                        originalCells.push({
+                            x, y, width, height
+                        });
+                    }
+                }
+                
+                // 绘制原始单元格
+                previewCtx.strokeStyle = 'rgba(0, 255, 0, 0.3)';
+                originalCells.forEach(cell => {
+                    previewCtx.strokeRect(cell.x, cell.y, cell.width, cell.height);
+                });
+                
+                // 绘制排除边框后的精确内容区域（亮绿色）
+                previewCtx.strokeStyle = 'rgba(0, 255, 0, 0.9)';
+            }
+            
+            // 绘制最终精灵区域
+            sprites.forEach(sprite => {
+                previewCtx.strokeRect(sprite.x, sprite.y, sprite.width, sprite.height);
+                
+                // 为每个精灵添加编号
+                previewCtx.fillStyle = 'rgba(0, 255, 0, 0.9)';
+                previewCtx.font = 'bold 14px Arial';
+                previewCtx.fillText(`#${sprite.id + 1}`, sprite.x + 5, sprite.y + 20);
+            });
+            
+            // 更新预览
+            setDetectionCanvas(previewCanvas);
+            setIsDetectingGridLines(false);
+        }, 100);
+    };
+    
+    // 检测白色边框
+    const detectWhiteBorders = (imageData, width, height) => {
+        const data = imageData.data;
+        const whiteThreshold = 230; // 白色的阈值，小于这个值的不被认为是白色
+        const contrastThreshold = 50; // 白色与非白色的对比度阈值
+        
+        // 用于记录每个像素行/列是否可能包含边框
+        const horizontalBorderCandidates = new Array(height).fill(0);
+        const verticalBorderCandidates = new Array(width).fill(0);
+        
+        // 扫描每个像素，检测白色区域
+        for (let y = 1; y < height - 1; y++) {
+            for (let x = 1; x < width - 1; x++) {
+                const idx = (y * width + x) * 4;
+                
+                // 判断当前像素是否为白色
+                const r = data[idx];
+                const g = data[idx + 1];
+                const b = data[idx + 2];
+                
+                // 检查是否是白色（所有RGB通道值都很高）
+                const isWhite = r > whiteThreshold && g > whiteThreshold && b > whiteThreshold;
+                
+                if (isWhite) {
+                    // 检查水平方向对比度
+                    const leftIdx = (y * width + (x - 1)) * 4;
+                    const rightIdx = (y * width + (x + 1)) * 4;
+                    
+                    const hasHorizontalContrast = 
+                        Math.abs(r - data[leftIdx]) > contrastThreshold || 
+                        Math.abs(r - data[rightIdx]) > contrastThreshold;
+                    
+                    // 检查垂直方向对比度
+                    const topIdx = ((y - 1) * width + x) * 4;
+                    const bottomIdx = ((y + 1) * width + x) * 4;
+                    
+                    const hasVerticalContrast = 
+                        Math.abs(r - data[topIdx]) > contrastThreshold || 
+                        Math.abs(r - data[bottomIdx]) > contrastThreshold;
+                    
+                    if (hasHorizontalContrast) {
+                        horizontalBorderCandidates[y]++;
+                    }
+                    
+                    if (hasVerticalContrast) {
+                        verticalBorderCandidates[x]++;
+                    }
+                }
+            }
+        }
+        
+        // 进一步分析哪些像素行/列可能包含边框线
+        // 使用阈值确定哪些位置有足够多的边框候选像素
+        const horizontalThreshold = width * 0.1; // 水平线需要至少10%宽度的边框候选点
+        const verticalThreshold = height * 0.1; // 垂直线需要至少10%高度的边框候选点
+        
+        const horizontalLines = [];
+        const verticalLines = [];
+        
+        // 查找水平边框线
+        for (let y = 0; y < height; y++) {
+            if (horizontalBorderCandidates[y] > horizontalThreshold) {
+                // 寻找局部极大值，确保不会选择过于接近的线
+                let isLocalMax = true;
+                const windowSize = Math.floor(height * 0.02); // 使用图像高度的2%作为窗口大小
+                
+                for (let j = 1; j <= windowSize; j++) {
+                    if (y - j >= 0 && horizontalBorderCandidates[y] < horizontalBorderCandidates[y - j]) {
+                        isLocalMax = false;
+                        break;
+                    }
+                    if (y + j < height && horizontalBorderCandidates[y] < horizontalBorderCandidates[y + j]) {
+                        isLocalMax = false;
+                        break;
+                    }
+                }
+                
+                if (isLocalMax) {
+                    horizontalLines.push(y);
+                }
+            }
+        }
+        
+        // 查找垂直边框线
+        for (let x = 0; x < width; x++) {
+            if (verticalBorderCandidates[x] > verticalThreshold) {
+                // 寻找局部极大值，确保不会选择过于接近的线
+                let isLocalMax = true;
+                const windowSize = Math.floor(width * 0.02); // 使用图像宽度的2%作为窗口大小
+                
+                for (let j = 1; j <= windowSize; j++) {
+                    if (x - j >= 0 && verticalBorderCandidates[x] < verticalBorderCandidates[x - j]) {
+                        isLocalMax = false;
+                        break;
+                    }
+                    if (x + j < width && verticalBorderCandidates[x] < verticalBorderCandidates[x + j]) {
+                        isLocalMax = false;
+                        break;
+                    }
+                }
+                
+                if (isLocalMax) {
+                    verticalLines.push(x);
+                }
+            }
+        }
+        
+        return { horizontalLines, verticalLines };
+    };
+    
+    // 基于Sobel算子的边缘检测
+    const detectEdges = (imageData, threshold) => {
+        const width = imageData.width;
+        const height = imageData.height;
+        const data = imageData.data;
+        
+        // 创建输出数组
+        const output = new Uint8ClampedArray(width * height);
+        
+        // Sobel算子
+        for (let y = 1; y < height - 1; y++) {
+            for (let x = 1; x < width - 1; x++) {
+                // 获取周围像素
+                const tl = getGrayscale(data, (y - 1) * width + (x - 1));
+                const t = getGrayscale(data, (y - 1) * width + x);
+                const tr = getGrayscale(data, (y - 1) * width + (x + 1));
+                const l = getGrayscale(data, y * width + (x - 1));
+                const r = getGrayscale(data, y * width + (x + 1));
+                const bl = getGrayscale(data, (y + 1) * width + (x - 1));
+                const b = getGrayscale(data, (y + 1) * width + x);
+                const br = getGrayscale(data, (y + 1) * width + (x + 1));
+                
+                // 水平和垂直梯度
+                const gx = -tl + tr - 2 * l + 2 * r - bl + br;
+                const gy = -tl - 2 * t - tr + bl + 2 * b + br;
+                
+                // 计算梯度大小
+                const g = Math.sqrt(gx * gx + gy * gy);
+                
+                // 应用阈值
+                output[y * width + x] = g > threshold ? 255 : 0;
+            }
+        }
+        
+        return output;
+    };
+    
+    // 获取像素的灰度值
+    const getGrayscale = (data, index) => {
+        index = index * 4;
+        if (index < 0 || index >= data.length) return 0;
+        
+        // 使用BT.709亮度公式计算灰度
+        return 0.2126 * data[index] + 0.7152 * data[index + 1] + 0.0722 * data[index + 2];
+    };
+    
+    // 查找网格线
+    const findGridLines = (edgeData, width, height) => {
+        const horizontalLinesCounts = new Array(height).fill(0);
+        const verticalLinesCounts = new Array(width).fill(0);
+        
+        // 统计每行/列的边缘像素数量
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                if (edgeData[y * width + x] > 0) {
+                    horizontalLinesCounts[y]++;
+                    verticalLinesCounts[x]++;
+                }
+            }
+        }
+        
+        // 找出峰值（可能的网格线）
+        const horizontalLines = findPeaks(horizontalLinesCounts, width * 0.1); // 至少10%的宽度有边缘像素
+        const verticalLines = findPeaks(verticalLinesCounts, height * 0.1); // 至少10%的高度有边缘像素
+        
+        return { horizontalLines, verticalLines };
+    };
+    
+    // 查找数组中的峰值
+    const findPeaks = (array, threshold) => {
+        const peaks = [];
+        const windowSize = 5; // 局部窗口大小
+        
+        for (let i = windowSize; i < array.length - windowSize; i++) {
+            let isPeak = true;
+            let localMax = array[i];
+            
+            // 检查是否是局部最大值
+            for (let j = 1; j <= windowSize; j++) {
+                if (array[i - j] > localMax || array[i + j] > localMax) {
+                    isPeak = false;
+                    break;
+                }
+            }
+            
+            // 检查是否满足阈值条件
+            if (isPeak && array[i] > threshold) {
+                peaks.push(i);
+                
+                // 跳过临近区域，避免重复检测
+                i += windowSize;
+            }
+        }
+        
+        return peaks;
+    };
+    
+    // 将图像分割成精灵
+    const divideIntoSprites = (horizontalLines, verticalLines, width, height) => {
+        // 确保网格线包含图像边界
+        if (!horizontalLines.includes(0)) horizontalLines.unshift(0);
+        if (!horizontalLines.includes(height - 1)) horizontalLines.push(height - 1);
+        if (!verticalLines.includes(0)) verticalLines.unshift(0);
+        if (!verticalLines.includes(width - 1)) verticalLines.push(width - 1);
+        
+        // 对网格线排序
+        horizontalLines.sort((a, b) => a - b);
+        verticalLines.sort((a, b) => a - b);
+        
+        // 创建精灵
+        const sprites = [];
+        
+        // 遍历所有单元格
+        for (let i = 0; i < horizontalLines.length - 1; i++) {
+            for (let j = 0; j < verticalLines.length - 1; j++) {
+                let x = verticalLines[j];
+                let y = horizontalLines[i];
+                let cellWidth = verticalLines[j + 1] - x;
+                let cellHeight = horizontalLines[i + 1] - y;
+                
+                // 忽略太小的单元格
+                if (cellWidth < 10 || cellHeight < 10) continue;
+                
+                // 如果开启了边框排除功能，调整坐标和尺寸
+                if (excludeBorders && detectionMode === 'whiteBorder') {
+                    if (autoTrimEdges) {
+                        // 自动检测边缘，这需要分析每个单元格
+                        const area = {
+                            x,
+                            y,
+                            width: cellWidth,
+                            height: cellHeight
+                        };
+                        const trimmedArea = autoDetectContentArea(area);
+                        
+                        x = trimmedArea.x;
+                        y = trimmedArea.y;
+                        cellWidth = trimmedArea.width;
+                        cellHeight = trimmedArea.height;
+                    } else {
+                        // 使用固定的边框大小
+                        x += borderSize;
+                        y += borderSize;
+                        cellWidth -= borderSize * 2;
+                        cellHeight -= borderSize * 2;
+                        
+                        // 确保尺寸不小于10像素
+                        cellWidth = Math.max(10, cellWidth);
+                        cellHeight = Math.max(10, cellHeight);
+                    }
+                }
+                
+                sprites.push({
+                    id: sprites.length,
+                    x,
+                    y,
+                    width: cellWidth,
+                    height: cellHeight,
+                    originalX: x,
+                    originalY: y,
+                    originalWidth: cellWidth,
+                    originalHeight: cellHeight
+                });
+            }
+        }
+        
+        return sprites;
+    };
+    
+    // 自动检测内容区域，去除边框
+    const autoDetectContentArea = (area) => {
+        if (!originalImage) return area;
+        
+        // 创建临时画布以分析区域
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = area.width;
+        tempCanvas.height = area.height;
+        const tempCtx = tempCanvas.getContext('2d');
+        
+        // 绘制区域到临时画布
+        tempCtx.drawImage(
+            originalImage,
+            area.x, area.y, area.width, area.height,
+            0, 0, area.width, area.height
+        );
+        
+        // 获取区域的图像数据
+        const imageData = tempCtx.getImageData(0, 0, area.width, area.height);
+        const data = imageData.data;
+        
+        // 设置白色阈值（接近白色的像素会被认为是背景）
+        const whiteThreshold = 230;
+        
+        // 初始化边界值
+        let left = area.width;
+        let right = 0;
+        let top = area.height;
+        let bottom = 0;
+        
+        // 扫描所有像素，确定实际内容边界
+        for (let y = 0; y < area.height; y++) {
+            for (let x = 0; x < area.width; x++) {
+                const i = (y * area.width + x) * 4;
+                
+                // 检查像素是否是边框颜色（白色）
+                // 这里使用简单的判断：如果RGB值都很高（接近白色），则认为是边框
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                const a = data[i + 3];
+                
+                // 如果像素不是白色，则它可能是内容的一部分
+                // 且透明度需要大于0
+                if (
+                    a > 0 && (
+                        r < whiteThreshold ||
+                        g < whiteThreshold ||
+                        b < whiteThreshold
+                    )
+                ) {
+                    left = Math.min(left, x);
+                    right = Math.max(right, x);
+                    top = Math.min(top, y);
+                    bottom = Math.max(bottom, y);
+                }
+            }
+        }
+        
+        // 如果没有找到非边框内容，返回原始区域
+        if (left > right || top > bottom) {
+            return area;
+        }
+        
+        // 计算新的边界，添加小边距（1像素）以确保内容完整性
+        const padding = 1;
+        left = Math.max(0, left - padding);
+        top = Math.max(0, top - padding);
+        right = Math.min(area.width - 1, right + padding);
+        bottom = Math.min(area.height - 1, bottom + padding);
+        
+        // 返回调整后的区域
+        return {
+            x: area.x + left,
+            y: area.y + top,
+            width: right - left + 1,
+            height: bottom - top + 1
+        };
+    };
+
+    // 应用检测结果
+    const applyDetectionResult = () => {
+        if (detectedSprites.length === 0) return;
+        
+        // 为每个精灵创建图像
+        const spritePromises = detectedSprites.map(sprite => {
+            return new Promise(resolve => {
+                try {
+                    const tempCanvas = document.createElement("canvas");
+                    tempCanvas.width = sprite.width;
+                    tempCanvas.height = sprite.height;
+                    const tempCtx = tempCanvas.getContext("2d");
+                    
+                    // 绘制精灵区域
+                    tempCtx.drawImage(
+                        originalImage,
+                        sprite.x,
+                        sprite.y,
+                        sprite.width,
+                        sprite.height,
+                        0,
+                        0,
+                        sprite.width,
+                        sprite.height
+                    );
+                    
+                    // 添加图像数据到精灵对象
+                    sprite.image = tempCanvas.toDataURL();
+                    resolve(sprite);
+                } catch (error) {
+                    console.error("创建精灵图像失败:", error);
+                    resolve(null);
+                }
+            });
+        });
+        
+        // 等待所有精灵图像创建完成
+        Promise.all(spritePromises).then(sprites => {
+            // 过滤掉失败的精灵
+            const validSprites = sprites.filter(sprite => sprite !== null);
+            
+            // 更新精灵和帧顺序
+            setSprites(validSprites);
+            setFrameOrder(validSprites.map(sprite => sprite.id));
+            
+            // 重置检测状态
+            setDetectionCanvas(null);
+            setDetectedSprites([]);
+        });
+    };
+
     return (
         <div className='app-container'>
             <div className='language-switch'>
@@ -899,6 +1504,201 @@ function App() {
                             {t.bySize}
                         </button>
                     </div>
+
+                    {/* 添加框线检测功能按钮 */}
+                    <div className='grid-detection'>
+                        <button
+                            className='detection-button'
+                            onClick={startGridLineDetection}
+                            disabled={isDetectingGridLines}
+                        >
+                            {isDetectingGridLines ? (
+                                <>
+                                    <svg
+                                        xmlns='http://www.w3.org/2000/svg'
+                                        width='20'
+                                        height='20'
+                                        viewBox='0 0 24 24'
+                                        fill='none'
+                                        stroke='currentColor'
+                                        strokeWidth='2'
+                                        strokeLinecap='round'
+                                        strokeLinejoin='round'
+                                        style={{
+                                            marginRight: "8px",
+                                            animation: "spin 2s linear infinite",
+                                        }}
+                                    >
+                                        <circle cx='12' cy='12' r='10'></circle>
+                                        <path d='M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0z'></path>
+                                    </svg>
+                                    {t.detectingGridLines}
+                                </>
+                            ) : (
+                                <>
+                                    <svg
+                                        xmlns='http://www.w3.org/2000/svg'
+                                        width='20'
+                                        height='20'
+                                        viewBox='0 0 24 24'
+                                        fill='none'
+                                        stroke='currentColor'
+                                        strokeWidth='2'
+                                        strokeLinecap='round'
+                                        strokeLinejoin='round'
+                                        style={{ marginRight: "8px" }}
+                                    >
+                                        <rect x='3' y='3' width='18' height='18' rx='2' ry='2'></rect>
+                                        <line x1='3' y1='9' x2='21' y2='9'></line>
+                                        <line x1='3' y1='15' x2='21' y2='15'></line>
+                                        <line x1='9' y1='3' x2='9' y2='21'></line>
+                                        <line x1='15' y1='3' x2='15' y2='21'></line>
+                                    </svg>
+                                    {t.detectGridLines}
+                                </>
+                            )}
+                        </button>
+                        
+                        <div className='detection-options'>
+                            <div className='detection-mode'>
+                                <label>{t.detectionModeDescription}</label>
+                                <select 
+                                    value={detectionMode} 
+                                    onChange={(e) => setDetectionMode(e.target.value)}
+                                    disabled={isDetectingGridLines}
+                                >
+                                    <option value="general">{t.detectionModeGeneral}</option>
+                                    <option value="whiteBorder">{t.detectionModeWhiteBorder}</option>
+                                </select>
+                            </div>
+
+                            {detectionMode === 'whiteBorder' && (
+                                <div className='expected-grid'>
+                                    <div className='expected-grid-controls'>
+                                        <label>
+                                            <input 
+                                                type="checkbox" 
+                                                checked={useExpectedGrid}
+                                                onChange={(e) => setUseExpectedGrid(e.target.checked)}
+                                                disabled={isDetectingGridLines}
+                                            />
+                                            {t.useExpectedGrid}
+                                        </label>
+                                    </div>
+                                    
+                                    {useExpectedGrid && (
+                                        <div className='expected-grid-inputs'>
+                                            <div>
+                                                <label>{t.expectedRows}</label>
+                                                <input 
+                                                    type="number" 
+                                                    min="1" 
+                                                    value={expectedRows}
+                                                    onChange={(e) => setExpectedRows(parseInt(e.target.value))}
+                                                    disabled={isDetectingGridLines}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label>{t.expectedCols}</label>
+                                                <input 
+                                                    type="number" 
+                                                    min="1" 
+                                                    value={expectedCols}
+                                                    onChange={(e) => setExpectedCols(parseInt(e.target.value))}
+                                                    disabled={isDetectingGridLines}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                    
+                                    <div className='border-options'>
+                                        <div className='edge-trim-controls'>
+                                            <label>
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={excludeBorders}
+                                                    onChange={(e) => setExcludeBorders(e.target.checked)}
+                                                    disabled={isDetectingGridLines}
+                                                />
+                                                {t.excludeBorders}
+                                            </label>
+                                        </div>
+                                        
+                                        {excludeBorders && (
+                                            <div className='border-size-controls'>
+                                                <div>
+                                                    <label>{t.borderSize}</label>
+                                                    <input 
+                                                        type="number" 
+                                                        min="1" 
+                                                        max="10"
+                                                        value={borderSize}
+                                                        onChange={(e) => setBorderSize(parseInt(e.target.value))}
+                                                        disabled={isDetectingGridLines || autoTrimEdges}
+                                                    />
+                                                </div>
+                                                <div className='auto-trim-controls'>
+                                                    <label>
+                                                        <input 
+                                                            type="checkbox" 
+                                                            checked={autoTrimEdges}
+                                                            onChange={(e) => setAutoTrimEdges(e.target.checked)}
+                                                            disabled={isDetectingGridLines}
+                                                        />
+                                                        {t.autoTrimEdges}
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className='threshold-control'>
+                            <label>{t.gridLinesThreshold}</label>
+                            <input
+                                type='range'
+                                min='50'
+                                max='250'
+                                value={detectionThreshold}
+                                onChange={(e) => setDetectionThreshold(parseInt(e.target.value))}
+                                disabled={isDetectingGridLines || (detectionMode === 'whiteBorder' && useExpectedGrid)}
+                            />
+                            <span>{detectionThreshold}</span>
+                        </div>
+                    </div>
+
+                    {/* 显示框线检测结果 */}
+                    {detectionCanvas && (
+                        <div className='detection-preview'>
+                            <div className='detection-canvas-container'>
+                                <canvas
+                                    ref={detectionCanvasRef}
+                                    width={originalImage.width}
+                                    height={originalImage.height}
+                                    style={{ display: 'none' }}
+                                ></canvas>
+                                <img 
+                                    src={detectionCanvas.toDataURL()} 
+                                    alt='检测到的框线'
+                                    className='detection-preview-image' 
+                                />
+                            </div>
+                            <div className='detection-info'>
+                                <p>
+                                    {t.gridLinesDetected.replace('{count}', detectedSprites.length)}
+                                </p>
+                                <button
+                                    className='apply-detection-button'
+                                    onClick={applyDetectionResult}
+                                    disabled={detectedSprites.length === 0}
+                                >
+                                    {t.applyDetection}
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     {!customSize ? (
                         <div className='grid-controls'>
@@ -1000,7 +1800,9 @@ function App() {
                             </svg>
                             {t.sortFrames}
                         </h3>
-                        <div className='frames-list'>
+                        <div className='frames-list' style={{ 
+                            gridTemplateColumns: `repeat(${frameItemsPerRow}, minmax(100px, 1fr))` 
+                        }}>
                             {frameOrder.map((id, index) => {
                                 const sprite = sprites.find(s => s.id === id);
                                 if (!sprite) return null;
