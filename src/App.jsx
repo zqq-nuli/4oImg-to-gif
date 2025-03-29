@@ -35,6 +35,7 @@ const translations = {
         dragToSelect: "在原图上拖动鼠标框选区域",
         applySelection: "应用选区",
         cancelSelection: "取消选区",
+        issuesTip: "如果您觉得哪里做得不好，或者想要新功能，可以在GitHub上提交issues",
     },
     en: {
         title: "Sprite Sheet GIF Generator",
@@ -67,6 +68,7 @@ const translations = {
         dragToSelect: "Drag to select area on the image",
         applySelection: "Apply Selection",
         cancelSelection: "Cancel Selection",
+        issuesTip: "If you find any issues or want new features, please submit issues on GitHub",
     },
 };
 
@@ -1368,6 +1370,7 @@ function App() {
                     </svg>
                     <span>GitHub</span>
                 </a>
+                <p className='issues-tip'>{t.issuesTip}</p>
             </footer>
         </div>
     );
