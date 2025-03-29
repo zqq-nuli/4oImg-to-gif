@@ -669,3 +669,136 @@ h3 {
 .reset-button:hover {
   background: #e0e0e0;
 }
+
+/* 框选工具样式 */
+.selection-tool-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 15px;
+  padding: 10px;
+  background-color: rgba(74, 111, 165, 0.1);
+  border-radius: 8px;
+}
+
+.selection-tool-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.selection-tool-button:hover {
+  background-color: var(--primary-dark);
+  transform: translateY(-2px);
+}
+
+.selection-tool-button:disabled {
+  background-color: #b0b0b0;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.selection-tip {
+  margin: 8px 0 0;
+  font-size: 0.85em;
+  color: var(--text-light);
+}
+
+.selection-canvas-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1000;
+  background-color: rgba(0, 0, 0, 0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.selection-canvas-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 20px;
+  max-width: 90%;
+  max-height: 75vh;
+  border: 3px solid white;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+.selection-canvas {
+  max-width: 100%;
+  max-height: 100%;
+  background-color: transparent;
+  cursor: crosshair;
+  display: block;
+}
+
+.selection-buttons {
+  display: flex;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.apply-selection, .cancel-selection {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.apply-selection {
+  background-color: var(--success-color);
+  color: white;
+}
+
+.apply-selection:hover {
+  background-color: var(--success-dark);
+  transform: translateY(-2px);
+}
+
+.cancel-selection {
+  background-color: #f0f0f0;
+  color: var(--text-dark);
+}
+
+.cancel-selection:hover {
+  background-color: #e0e0e0;
+  transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+  .selection-canvas-container {
+    padding: 10px;
+  }
+  
+  .selection-canvas {
+    max-height: 70vh;
+  }
+  
+  .selection-buttons {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .apply-selection, .cancel-selection {
+    width: 100%;
+  }
+}

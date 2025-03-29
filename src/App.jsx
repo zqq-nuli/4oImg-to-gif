@@ -31,6 +31,10 @@ const translations = {
         saveGif: "保存 GIF",
         saveApng: "保存 APNG",
         px: "px",
+        selectionTool: "框选工具",
+        dragToSelect: "在原图上拖动鼠标框选区域",
+        applySelection: "应用选区",
+        cancelSelection: "取消选区",
     },
     en: {
         title: "Sprite Sheet GIF Generator",
@@ -59,6 +63,10 @@ const translations = {
         saveGif: "Save GIF",
         saveApng: "Save APNG",
         px: "px",
+        selectionTool: "Selection Tool",
+        dragToSelect: "Drag to select area on the image",
+        applySelection: "Apply Selection",
+        cancelSelection: "Cancel Selection",
     },
 };
 
@@ -78,6 +86,11 @@ function App() {
     const [language, setLanguage] = useState("zh"); // 默认语言为中文
     const [selectedFrameId, setSelectedFrameId] = useState(null); // 当前选中的帧ID
     const canvasRef = useRef(null);
+    const selectionCanvasRef = useRef(null); // 用于框选的画布
+    const [isSelecting, setIsSelecting] = useState(false); // 是否处于框选状态
+    const [selectionStart, setSelectionStart] = useState({ x: 0, y: 0 }); // 选择的起始位置
+    const [selectionEnd, setSelectionEnd] = useState({ x: 0, y: 0 }); // 选择的结束位置
+    const [showSelectionTool, setShowSelectionTool] = useState(false); // 是否显示框选工具
 
     // 获取当前语言的翻译
     const t = translations[language];
@@ -238,120 +251,97 @@ function App() {
     };
 
     // 更新精灵位置或尺寸
-    const updateSpriteProperty = (id, property, value) => {
+    const updateSpriteProperties = (id, properties) => {
+        if (!originalImage) return;
+
         setSprites(prevSprites => {
-            return prevSprites.map(sprite => {
+            const updatedSprites = prevSprites.map(sprite => {
                 if (sprite.id === id) {
-                    const updatedSprite = { ...sprite, [property]: parseInt(value) || 0 };
-
-                    // 创建临时画布更新精灵图像预览
-                    const tempCanvas = document.createElement("canvas");
+                    // 获取新的属性值
+                    const newX = properties.x !== undefined ? parseInt(properties.x) : sprite.x;
+                    const newY = properties.y !== undefined ? parseInt(properties.y) : sprite.y;
                     const newWidth =
-                        property === "width" ? parseInt(value) || sprite.width : sprite.width;
+                        properties.width !== undefined ? parseInt(properties.width) : sprite.width;
                     const newHeight =
-                        property === "height" ? parseInt(value) || sprite.height : sprite.height;
-                    tempCanvas.width = newWidth;
-                    tempCanvas.height = newHeight;
-                    const tempCtx = tempCanvas.getContext("2d");
+                        properties.height !== undefined
+                            ? parseInt(properties.height)
+                            : sprite.height;
 
-                    // 获取新坐标
-                    const newX = property === "x" ? parseInt(value) || sprite.x : sprite.x;
-                    const newY = property === "y" ? parseInt(value) || sprite.y : sprite.y;
-
-                    // 从原始图像中提取新区域
-                    tempCtx.drawImage(
-                        originalImage,
-                        newX,
-                        newY,
-                        newWidth,
-                        newHeight,
-                        0,
-                        0,
-                        newWidth,
-                        newHeight
+                    // 确保坐标和尺寸在有效范围内
+                    const validX = Math.max(0, Math.min(newX, originalImage.width - 1));
+                    const validY = Math.max(0, Math.min(newY, originalImage.height - 1));
+                    const validWidth = Math.max(
+                        5,
+                        Math.min(newWidth, originalImage.width - validX)
+                    );
+                    const validHeight = Math.max(
+                        5,
+                        Math.min(newHeight, originalImage.height - validY)
                     );
 
-                    // 更新精灵图像
-                    updatedSprite.image = tempCanvas.toDataURL();
+                    // 创建更新后的精灵对象
+                    const updatedSprite = {
+                        ...sprite,
+                        x: validX,
+                        y: validY,
+                        width: validWidth,
+                        height: validHeight,
+                    };
+
+                    // 创建临时画布更新精灵图像预览
+                    try {
+                        const tempCanvas = document.createElement("canvas");
+                        tempCanvas.width = validWidth;
+                        tempCanvas.height = validHeight;
+                        const tempCtx = tempCanvas.getContext("2d");
+
+                        // 从原始图像中提取新区域
+                        tempCtx.drawImage(
+                            originalImage,
+                            validX,
+                            validY,
+                            validWidth,
+                            validHeight,
+                            0,
+                            0,
+                            validWidth,
+                            validHeight
+                        );
+
+                        // 更新精灵图像
+                        updatedSprite.image = tempCanvas.toDataURL();
+                    } catch (error) {
+                        console.error("更新帧图像失败:", error);
+                    }
 
                     return updatedSprite;
                 }
                 return sprite;
             });
+
+            return updatedSprites;
         });
     };
 
     // 重置精灵位置
     const resetSpritePosition = id => {
-        setSprites(prevSprites => {
-            return prevSprites.map(sprite => {
-                if (sprite.id === id) {
-                    // 创建临时画布
-                    const tempCanvas = document.createElement("canvas");
-                    tempCanvas.width = sprite.width;
-                    tempCanvas.height = sprite.height;
-                    const tempCtx = tempCanvas.getContext("2d");
+        const sprite = sprites.find(s => s.id === id);
+        if (!sprite || !originalImage) return;
 
-                    // 从原始图像中提取原始位置的区域
-                    tempCtx.drawImage(
-                        originalImage,
-                        sprite.originalX,
-                        sprite.originalY,
-                        sprite.width,
-                        sprite.height,
-                        0,
-                        0,
-                        sprite.width,
-                        sprite.height
-                    );
-
-                    // 返回更新后的精灵
-                    return {
-                        ...sprite,
-                        x: sprite.originalX,
-                        y: sprite.originalY,
-                        image: tempCanvas.toDataURL(),
-                    };
-                }
-                return sprite;
-            });
+        updateSpriteProperties(id, {
+            x: sprite.originalX,
+            y: sprite.originalY,
         });
     };
 
     // 重置精灵尺寸
     const resetSpriteSize = id => {
-        setSprites(prevSprites => {
-            return prevSprites.map(sprite => {
-                if (sprite.id === id) {
-                    // 创建临时画布
-                    const tempCanvas = document.createElement("canvas");
-                    tempCanvas.width = sprite.originalWidth;
-                    tempCanvas.height = sprite.originalHeight;
-                    const tempCtx = tempCanvas.getContext("2d");
+        const sprite = sprites.find(s => s.id === id);
+        if (!sprite || !originalImage) return;
 
-                    // 从原始图像中提取区域
-                    tempCtx.drawImage(
-                        originalImage,
-                        sprite.x,
-                        sprite.y,
-                        sprite.originalWidth,
-                        sprite.originalHeight,
-                        0,
-                        0,
-                        sprite.originalWidth,
-                        sprite.originalHeight
-                    );
-
-                    // 返回更新后的精灵
-                    return {
-                        ...sprite,
-                        width: sprite.originalWidth,
-                        height: sprite.originalHeight,
-                        image: tempCanvas.toDataURL(),
-                    };
-                }
-                return sprite;
-            });
+        updateSpriteProperties(id, {
+            width: sprite.originalWidth,
+            height: sprite.originalHeight,
         });
     };
 
@@ -565,6 +555,287 @@ function App() {
 
         setFrameOrder(newOrder);
     };
+
+    // 计算选择区域的属性
+    const getSelectionRect = () => {
+        const startX = Math.min(selectionStart.x, selectionEnd.x);
+        const startY = Math.min(selectionStart.y, selectionEnd.y);
+        const width = Math.abs(selectionEnd.x - selectionStart.x);
+        const height = Math.abs(selectionEnd.y - selectionStart.y);
+
+        return { x: startX, y: startY, width, height };
+    };
+
+    // 开启框选工具
+    const startSelectionTool = () => {
+        setShowSelectionTool(true);
+        setIsSelecting(true);
+
+        // 重置选择状态
+        setSelectionStart({ x: 0, y: 0 });
+        setSelectionEnd({ x: 0, y: 0 });
+
+        // 设置选择画布的尺寸为原始图像尺寸
+        if (originalImage && selectionCanvasRef.current) {
+            const canvas = selectionCanvasRef.current;
+
+            // 确保先添加canvas到DOM，然后再设置属性
+            setTimeout(() => {
+                // 直接设置canvas DOM宽高属性，不使用setAttribute
+                canvas.width = originalImage.width;
+                canvas.height = originalImage.height;
+
+                // 立即绘制画布，显示原始图像
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(originalImage, 0, 0, canvas.width, canvas.height);
+
+                console.log("框选画布尺寸:", canvas.width, "x", canvas.height);
+                console.log("原始图像尺寸:", originalImage.width, "x", originalImage.height);
+            }, 50);
+        }
+    };
+
+    // 开始框选
+    const handleSelectionStart = e => {
+        if (!isSelecting || !showSelectionTool) return;
+
+        const canvas = selectionCanvasRef.current;
+        const rect = canvas.getBoundingClientRect();
+
+        // 计算缩放比例
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
+        // 转换鼠标坐标到canvas实际坐标系统
+        const x = Math.round((e.clientX - rect.left) * scaleX);
+        const y = Math.round((e.clientY - rect.top) * scaleY);
+
+        console.log("开始框选:", x, y);
+        setSelectionStart({ x, y });
+        setSelectionEnd({ x, y });
+    };
+
+    // 框选过程中
+    const handleSelectionMove = e => {
+        if (!isSelecting || !showSelectionTool) return;
+
+        if (e.buttons !== 1) return; // 只有按住鼠标左键时才处理
+
+        const canvas = selectionCanvasRef.current;
+        const rect = canvas.getBoundingClientRect();
+
+        // 计算缩放比例
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
+        // 转换鼠标坐标到canvas实际坐标系统
+        const x = Math.round(Math.max(0, Math.min((e.clientX - rect.left) * scaleX, canvas.width)));
+        const y = Math.round(Math.max(0, Math.min((e.clientY - rect.top) * scaleY, canvas.height)));
+
+        setSelectionEnd({ x, y });
+
+        // 绘制选择框
+        drawSelectionBox();
+    };
+
+    // 结束框选
+    const handleSelectionEnd = e => {
+        if (!isSelecting || !showSelectionTool) return;
+
+        // 只在鼠标松开时处理，移出画布时不处理
+        if (e.type === "mouseleave") return;
+
+        const canvas = selectionCanvasRef.current;
+        const rect = canvas.getBoundingClientRect();
+
+        // 计算缩放比例
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
+        // 转换鼠标坐标到canvas实际坐标系统
+        const x = Math.round(Math.max(0, Math.min((e.clientX - rect.left) * scaleX, canvas.width)));
+        const y = Math.round(Math.max(0, Math.min((e.clientY - rect.top) * scaleY, canvas.height)));
+
+        setSelectionEnd({ x, y });
+
+        // 更新选择框
+        drawSelectionBox();
+
+        // 记录选择区域的信息
+        const { width, height } = getSelectionRect();
+        console.log("选择完成:", width, "x", height);
+    };
+
+    // 绘制选择框
+    const drawSelectionBox = () => {
+        const canvas = selectionCanvasRef.current;
+        if (!canvas || !originalImage) return;
+
+        const ctx = canvas.getContext("2d");
+
+        // 保存当前上下文状态
+        ctx.save();
+
+        // 清除之前的绘制并重新绘制原始图像
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(originalImage, 0, 0, canvas.width, canvas.height);
+
+        if (isSelecting) {
+            const { x, y, width, height } = getSelectionRect();
+
+            // 创建半透明遮罩（遮盖整个画布）
+            ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 使用剪切路径让选区区域显示原图
+            ctx.beginPath();
+            ctx.rect(x, y, width, height);
+            ctx.clip();
+
+            // 清除选区区域的遮罩，重新绘制该区域的原图
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(originalImage, 0, 0, canvas.width, canvas.height);
+
+            // 恢复上下文状态
+            ctx.restore();
+
+            // 绘制选择框边框
+            ctx.strokeStyle = "rgba(0, 150, 255, 1.0)";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, y, width, height);
+
+            // 显示选择尺寸
+            ctx.fillStyle = "white";
+            ctx.font = "bold 14px Arial";
+            ctx.fillText(`${Math.round(width)} × ${Math.round(height)}`, x + 5, y + height - 10);
+        }
+    };
+
+    // 应用选择区域到当前帧
+    const applySelection = e => {
+        // 防止事件冒泡
+        if (e) e.stopPropagation();
+
+        console.log("应用选区状态:", {
+            selectedFrameId,
+            isSelecting,
+            hasOriginalImage: !!originalImage
+        });
+
+        // 先检查是否有选中的帧和原始图像
+        if (selectedFrameId === null || selectedFrameId === undefined || !originalImage) {
+            console.error("无法应用选区：未选择帧或无原始图像");
+            return;
+        }
+
+        // 获取矩形选区
+        const { x, y, width, height } = getSelectionRect();
+        console.log("原始选区:", { x, y, width, height });
+
+        // 选区太小，提示用户
+        if (width < 10 || height < 10) {
+            alert("选择区域太小，请选择更大的区域");
+            return;
+        }
+
+        // 确保坐标和尺寸是整数并在图像范围内
+        const intX = Math.round(Math.max(0, Math.min(x, originalImage.width - 1)));
+        const intY = Math.round(Math.max(0, Math.min(y, originalImage.height - 1)));
+        const intWidth = Math.round(Math.min(width, originalImage.width - intX));
+        const intHeight = Math.round(Math.min(height, originalImage.height - intY));
+
+        console.log("处理后选区:", { x: intX, y: intY, width: intWidth, height: intHeight });
+
+        if (intWidth <= 0 || intHeight <= 0) {
+            alert("选区无效，请重新选择");
+            return;
+        }
+
+        // 更新选中帧的位置和尺寸
+        const updatedProps = {
+            x: intX,
+            y: intY,
+            width: intWidth,
+            height: intHeight,
+        };
+
+        // 立即创建预览
+        try {
+            const sprite = sprites.find(s => s.id === selectedFrameId);
+            if (!sprite) throw new Error("找不到选中的帧");
+
+            // 创建临时画布更新精灵图像预览
+            const tempCanvas = document.createElement("canvas");
+            tempCanvas.width = intWidth;
+            tempCanvas.height = intHeight;
+            const tempCtx = tempCanvas.getContext("2d");
+
+            // 从原始图像中提取选区
+            tempCtx.drawImage(
+                originalImage,
+                intX,
+                intY,
+                intWidth,
+                intHeight,
+                0,
+                0,
+                intWidth,
+                intHeight
+            );
+
+            // 确认选区预览成功
+            console.log("预览图像生成完成");
+
+            // 更新精灵属性
+            updateSpriteProperties(selectedFrameId, updatedProps);
+            console.log("已应用选区，更新精灵属性完成");
+        } catch (error) {
+            console.error("应用选区时发生错误:", error);
+            alert("应用选区失败，请重试");
+        }
+
+        // 重置框选工具状态
+        resetSelectionTool();
+    };
+
+    // 取消选择
+    const cancelSelection = e => {
+        // 防止事件冒泡
+        if (e) e.stopPropagation();
+        resetSelectionTool();
+    };
+
+    // 重置框选工具状态
+    const resetSelectionTool = () => {
+        setIsSelecting(false);
+        setShowSelectionTool(false);
+
+        // 清除选择框
+        const canvas = selectionCanvasRef.current;
+        if (canvas) {
+            const ctx = canvas.getContext("2d");
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    };
+
+    // 原始图像加载后初始化框选画布
+    useEffect(() => {
+        if (originalImage && selectionCanvasRef.current) {
+            const canvas = selectionCanvasRef.current;
+            // 直接设置DOM宽高属性
+            canvas.width = originalImage.width;
+            canvas.height = originalImage.height;
+            console.log("初始化框选画布尺寸:", canvas.width, "x", canvas.height);
+        }
+    }, [originalImage]);
+
+    // 当框选状态改变时更新画布
+    useEffect(() => {
+        if (showSelectionTool) {
+            drawSelectionBox();
+        }
+    }, [showSelectionTool, selectionStart, selectionEnd, isSelecting]);
 
     return (
         <div className='app-container'>
@@ -810,6 +1081,32 @@ function App() {
 
                                     return (
                                         <div className='customize-controls'>
+                                            {/* 添加框选工具按钮 */}
+                                            <div className='selection-tool-wrapper'>
+                                                <button
+                                                    className='selection-tool-button'
+                                                    onClick={startSelectionTool}
+                                                    disabled={showSelectionTool}
+                                                >
+                                                    <svg
+                                                        xmlns='http://www.w3.org/2000/svg'
+                                                        width='16'
+                                                        height='16'
+                                                        viewBox='0 0 24 24'
+                                                        fill='none'
+                                                        stroke='currentColor'
+                                                        strokeWidth='2'
+                                                        strokeLinecap='round'
+                                                        strokeLinejoin='round'
+                                                        style={{ marginRight: "8px" }}
+                                                    >
+                                                        <path d='M3 3h18v18H3z'></path>
+                                                    </svg>
+                                                    {t.selectionTool}
+                                                </button>
+                                                <p className='selection-tip'>{t.dragToSelect}</p>
+                                            </div>
+
                                             <div className='position-controls'>
                                                 <div>
                                                     <label>{t.posX}</label>
@@ -817,10 +1114,9 @@ function App() {
                                                         type='number'
                                                         value={sprite.x}
                                                         onChange={e =>
-                                                            updateSpriteProperty(
+                                                            updateSpriteProperties(
                                                                 selectedFrameId,
-                                                                "x",
-                                                                e.target.value
+                                                                { x: e.target.value }
                                                             )
                                                         }
                                                         min='0'
@@ -834,10 +1130,9 @@ function App() {
                                                         type='number'
                                                         value={sprite.y}
                                                         onChange={e =>
-                                                            updateSpriteProperty(
+                                                            updateSpriteProperties(
                                                                 selectedFrameId,
-                                                                "y",
-                                                                e.target.value
+                                                                { y: e.target.value }
                                                             )
                                                         }
                                                         min='0'
@@ -861,10 +1156,9 @@ function App() {
                                                         type='number'
                                                         value={sprite.width}
                                                         onChange={e =>
-                                                            updateSpriteProperty(
+                                                            updateSpriteProperties(
                                                                 selectedFrameId,
-                                                                "width",
-                                                                e.target.value
+                                                                { width: e.target.value }
                                                             )
                                                         }
                                                         min='10'
@@ -878,10 +1172,9 @@ function App() {
                                                         type='number'
                                                         value={sprite.height}
                                                         onChange={e =>
-                                                            updateSpriteProperty(
+                                                            updateSpriteProperties(
                                                                 selectedFrameId,
-                                                                "height",
-                                                                e.target.value
+                                                                { height: e.target.value }
                                                             )
                                                         }
                                                         min='10'
@@ -899,6 +1192,39 @@ function App() {
                                         </div>
                                     );
                                 })()}
+                            </div>
+                        )}
+
+                        {/* 框选工具画布 */}
+                        {showSelectionTool && selectedFrameId !== null && (
+                            <div
+                                className='selection-canvas-container'
+                                onClick={e => {
+                                    // 确保点击背景时也能关闭框选工具
+                                    if (e.target.className === "selection-canvas-container") {
+                                        cancelSelection(e);
+                                    }
+                                }}
+                            >
+                                <div className='selection-canvas-wrapper'>
+                                    <canvas
+                                        ref={selectionCanvasRef}
+                                        className='selection-canvas'
+                                        width={originalImage ? originalImage.width : 200}
+                                        height={originalImage ? originalImage.height : 200}
+                                        onMouseDown={handleSelectionStart}
+                                        onMouseMove={handleSelectionMove}
+                                        onMouseUp={handleSelectionEnd}
+                                    ></canvas>
+                                </div>
+                                <div className='selection-buttons'>
+                                    <button className='apply-selection' onClick={applySelection}>
+                                        {t.applySelection}
+                                    </button>
+                                    <button className='cancel-selection' onClick={cancelSelection}>
+                                        {t.cancelSelection}
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </div>
