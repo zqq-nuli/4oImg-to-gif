@@ -2167,6 +2167,15 @@ function App() {
                                     所选帧预览
                                 </h3>
                                 {(() => {
+                                    const handleDownload = () => {
+                                        // 创建一个临时的a标签用于下载
+                                        const a = document.createElement('a');
+                                        a.href = sprite.image;
+                                        a.download = `帧_${frameOrder.indexOf(selectedFrameId) + 1}.png`;
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        document.body.removeChild(a);
+                                    };
                                     const sprite = sprites.find(s => s.id === selectedFrameId);
                                     if (!sprite) return null;
                                     return (
@@ -2176,6 +2185,42 @@ function App() {
                                                 alt={`帧 ${frameOrder.indexOf(selectedFrameId) + 1}`}
                                                 style={{ border: '1px solid #00ff00' }}
                                             />
+                                            <button 
+                                                className="download-frame-btn"
+                                                onClick={handleDownload}
+                                                style={{
+                                                    marginTop: '10px',
+                                                    padding: '8px 15px',
+                                                    backgroundColor: '#4CAF50',
+                                                    color: 'white',
+                                                    border: 'none',
+                                                    borderRadius: '4px',
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    width: 'fit-content',
+                                                    margin: '10px auto 0'
+                                                }}
+                                            >
+                                                <svg 
+                                                    xmlns="http://www.w3.org/2000/svg" 
+                                                    width="16" 
+                                                    height="16" 
+                                                    viewBox="0 0 24 24" 
+                                                    fill="none" 
+                                                    stroke="currentColor" 
+                                                    strokeWidth="2" 
+                                                    strokeLinecap="round" 
+                                                    strokeLinejoin="round"
+                                                    style={{ marginRight: '5px' }}
+                                                >
+                                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                                    <polyline points="7 10 12 15 17 10"></polyline>
+                                                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                                                </svg>
+                                                下载所选帧
+                                            </button>
                                         </div>
                                     );
                                 })()}
