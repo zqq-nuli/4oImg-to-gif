@@ -505,6 +505,7 @@ h3 {
 /* 保存按钮组样式 */
 .save-buttons {
   display: flex;
+  flex-wrap: wrap;
   gap: 16px;
   justify-content: center;
   width: 100%;
@@ -525,6 +526,19 @@ h3 {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.save-split-images {
+  background-color: var(--secondary-color, #4caf50);
+  margin-top: 12px;
+  width: 100%;
+  max-width: 336px; /* 匹配两个按钮的宽度和间距 */
+}
+
+.save-split-images:hover {
+  background-color: var(--secondary-dark, #388e3c);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .save-apng {

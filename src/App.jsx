@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import "./App.css";
 import GIF from "gif.js";
+import JSZip from "jszip"; // 本地导入JSZip库
 
 // 翻译字典
 const translations = {
@@ -67,6 +68,7 @@ const translations = {
         dragToSelect: "在原图上拖动鼠标框选区域",
         applySelection: "应用选区",
         cancelSelection: "取消选区",
+        exportSplitImages: "导出分割图",
     },
     en: {
         title: "Image to GIF/APNG Tool",
@@ -131,6 +133,7 @@ const translations = {
         dragToSelect: "Drag to select area on image",
         applySelection: "Apply Selection",
         cancelSelection: "Cancel Selection",
+        exportSplitImages: "Export Split Images",
     },
 };
 
@@ -2027,6 +2030,108 @@ function App() {
         }
     }, [originalImage, useCropBorder]);
 
+    // 导出所有分割图为PNG
+    const exportSplitImages = () => {
+        try {
+            const zip = new JSZip();
+            const imgFolder = zip.folder("split_images");
+            
+            // 获取要导出的帧
+            const reorderedSprites = frameOrder.map(id => sprites.find(s => s.id === id));
+            const exportPromises = [];
+
+            // 为每个帧创建PNG并添加到ZIP中
+            reorderedSprites.forEach((sprite, index) => {
+                const canvas = document.createElement("canvas");
+                canvas.width = sprite.width;
+                canvas.height = sprite.height;
+                const ctx = canvas.getContext("2d");
+                
+                // 绘制精灵到画布上
+                ctx.drawImage(
+                    originalImage,
+                    sprite.x,
+                    sprite.y,
+                    sprite.width,
+                    sprite.height,
+                    0,
+                    0,
+                    sprite.width,
+                    sprite.height
+                );
+                
+                // 将画布转换为Blob
+                const promise = new Promise(resolve => {
+                    canvas.toBlob(blob => {
+                        imgFolder.file(`frame_${(index + 1).toString().padStart(3, '0')}.png`, blob);
+                        resolve();
+                    }, "image/png");
+                });
+                
+                exportPromises.push(promise);
+            });
+            
+            // 当所有图像都处理完毕后生成并下载ZIP文件
+            Promise.all(exportPromises).then(() => {
+                zip.generateAsync({ type: "blob" }).then(content => {
+                    const url = URL.createObjectURL(content);
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.download = "split_images.zip";
+                    link.click();
+                    URL.revokeObjectURL(url);
+                });
+            });
+        } catch (error) {
+            console.error("导出分割图失败:", error);
+            
+            // 回退方案：如果无法创建ZIP，则逐个下载图像
+            alert("无法创建ZIP包，将逐个下载图像");
+            
+            const reorderedSprites = frameOrder.map(id => sprites.find(s => s.id === id));
+            
+            // 使用setTimeout循环下载，避免浏览器阻止多个下载
+            const downloadSequentially = (index) => {
+                if (index >= reorderedSprites.length) return;
+                
+                const sprite = reorderedSprites[index];
+                const canvas = document.createElement("canvas");
+                canvas.width = sprite.width;
+                canvas.height = sprite.height;
+                const ctx = canvas.getContext("2d");
+                
+                // 绘制精灵到画布上
+                ctx.drawImage(
+                    originalImage,
+                    sprite.x,
+                    sprite.y,
+                    sprite.width,
+                    sprite.height,
+                    0,
+                    0,
+                    sprite.width,
+                    sprite.height
+                );
+                
+                // 下载单个PNG
+                canvas.toBlob(blob => {
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.download = `frame_${(index + 1).toString().padStart(3, '0')}.png`;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                    
+                    // 延迟下载下一个
+                    setTimeout(() => downloadSequentially(index + 1), 300);
+                }, "image/png");
+            };
+            
+            // 开始顺序下载
+            downloadSequentially(0);
+        }
+    };
+
     return (
         <div className='app-container'>
             <div className='language-switch'>
@@ -2550,6 +2655,25 @@ function App() {
                                         </svg>
                                         {t.saveApng}
                                     </button>
+                                    <button onClick={exportSplitImages} className='save-button save-split-images'>
+                                        <svg
+                                            xmlns='http://www.w3.org/2000/svg'
+                                            width='20'
+                                            height='20'
+                                            viewBox='0 0 24 24'
+                                            fill='none'
+                                            stroke='currentColor'
+                                            strokeWidth='2'
+                                            strokeLinecap='round'
+                                            strokeLinejoin='round'
+                                            style={{ marginRight: "8px" }}
+                                        >
+                                            <path d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'></path>
+                                            <polyline points='7 10 12 3 17 10'></polyline>
+                                            <line x1='12' y1='15' x2='12' y2='3'></line>
+                                        </svg>
+                                        {t.exportSplitImages}
+                                    </button>
                                 </div>
                             </div>
                         )}
@@ -2557,7 +2681,7 @@ function App() {
                 </div>
             )}
 
-            {/* 添加GitHub链接 */}
+            {/* GitHub链接 */}
             <footer className='github-footer'>
                 <a
                     href='https://github.com/zqq-nuli/4oImg-to-gif'
